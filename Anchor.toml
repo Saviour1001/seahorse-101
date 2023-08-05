@@ -4,6 +4,9 @@ skip-lint = false
 [programs.localnet]
 my_awesome_app = "BAv1R7yGTcga43cjmsHMcZsXTsLTxdK4UT4nMg8qzhTh"
 
+[programs.devnet]
+my_awesome_app = "BAv1R7yGTcga43cjmsHMcZsXTsLTxdK4UT4nMg8qzhTh"
+
 [registry]
 url = "https://api.apr.dev"
 
