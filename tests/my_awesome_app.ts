@@ -24,6 +24,6 @@ describe("my_awesome_app", () => {
   const user = userPDA;
 
   it("Creating user", async () => {
-    await program.methods.initUser().accounts({ owner: myKey }).rpc();
+    await program.methods.initUser().accounts({ user, owner: myKey }).rpc();
   });
 });
