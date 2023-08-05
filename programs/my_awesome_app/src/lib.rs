@@ -13,7 +13,7 @@ use anchor_spl::{
 use dot::program::*;
 use std::{cell::RefCell, rc::Rc};
 
-declare_id!("816ES5PuccseqmtEdJkHnDT2cDwF5cppDu6Xh4s6ahRS");
+declare_id!("BAv1R7yGTcga43cjmsHMcZsXTsLTxdK4UT4nMg8qzhTh");
 
 pub mod seahorse_util {
     use super::*;
