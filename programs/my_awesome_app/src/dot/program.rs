@@ -8,180 +8,174 @@ use std::{cell::RefCell, rc::Rc};
 
 #[account]
 #[derive(Debug)]
-pub struct TodoAccount {
+pub struct Note {
     pub owner: Pubkey,
-    pub idx: u8,
+    pub index: u8,
+    pub title: String,
     pub content: String,
-    pub marked: bool,
 }
 
-impl<'info, 'entrypoint> TodoAccount {
+impl<'info, 'entrypoint> Note {
     pub fn load(
         account: &'entrypoint mut Box<Account<'info, Self>>,
         programs_map: &'entrypoint ProgramsMap<'info>,
-    ) -> Mutable<LoadedTodoAccount<'info, 'entrypoint>> {
+    ) -> Mutable<LoadedNote<'info, 'entrypoint>> {
         let owner = account.owner.clone();
-        let idx = account.idx;
+        let index = account.index;
+        let title = account.title.clone();
         let content = account.content.clone();
-        let marked = account.marked.clone();
 
-        Mutable::new(LoadedTodoAccount {
+        Mutable::new(LoadedNote {
             __account__: account,
             __programs__: programs_map,
             owner,
-            idx,
+            index,
+            title,
             content,
-            marked,
         })
     }
 
-    pub fn store(loaded: Mutable<LoadedTodoAccount>) {
+    pub fn store(loaded: Mutable<LoadedNote>) {
         let mut loaded = loaded.borrow_mut();
         let owner = loaded.owner.clone();
 
         loaded.__account__.owner = owner;
 
-        let idx = loaded.idx;
+        let index = loaded.index;
 
-        loaded.__account__.idx = idx;
+        loaded.__account__.index = index;
+
+        let title = loaded.title.clone();
+
+        loaded.__account__.title = title;
 
         let content = loaded.content.clone();
 
         loaded.__account__.content = content;
-
-        let marked = loaded.marked.clone();
-
-        loaded.__account__.marked = marked;
     }
 }
 
 #[derive(Debug)]
-pub struct LoadedTodoAccount<'info, 'entrypoint> {
-    pub __account__: &'entrypoint mut Box<Account<'info, TodoAccount>>,
+pub struct LoadedNote<'info, 'entrypoint> {
+    pub __account__: &'entrypoint mut Box<Account<'info, Note>>,
     pub __programs__: &'entrypoint ProgramsMap<'info>,
     pub owner: Pubkey,
-    pub idx: u8,
+    pub index: u8,
+    pub title: String,
     pub content: String,
-    pub marked: bool,
 }
 
 #[account]
 #[derive(Debug)]
-pub struct UserProfile {
+pub struct User {
     pub owner: Pubkey,
-    pub last_todo: u8,
-    pub todo_count: u8,
+    pub note_count: u8,
+    pub last_note: u8,
 }
 
-impl<'info, 'entrypoint> UserProfile {
+impl<'info, 'entrypoint> User {
     pub fn load(
         account: &'entrypoint mut Box<Account<'info, Self>>,
         programs_map: &'entrypoint ProgramsMap<'info>,
-    ) -> Mutable<LoadedUserProfile<'info, 'entrypoint>> {
+    ) -> Mutable<LoadedUser<'info, 'entrypoint>> {
         let owner = account.owner.clone();
-        let last_todo = account.last_todo;
-        let todo_count = account.todo_count;
+        let note_count = account.note_count;
+        let last_note = account.last_note;
 
-        Mutable::new(LoadedUserProfile {
+        Mutable::new(LoadedUser {
             __account__: account,
             __programs__: programs_map,
             owner,
-            last_todo,
-            todo_count,
+            note_count,
+            last_note,
         })
     }
 
-    pub fn store(loaded: Mutable<LoadedUserProfile>) {
+    pub fn store(loaded: Mutable<LoadedUser>) {
         let mut loaded = loaded.borrow_mut();
         let owner = loaded.owner.clone();
 
         loaded.__account__.owner = owner;
 
-        let last_todo = loaded.last_todo;
+        let note_count = loaded.note_count;
 
-        loaded.__account__.last_todo = last_todo;
+        loaded.__account__.note_count = note_count;
 
-        let todo_count = loaded.todo_count;
+        let last_note = loaded.last_note;
 
-        loaded.__account__.todo_count = todo_count;
+        loaded.__account__.last_note = last_note;
     }
 }
 
 #[derive(Debug)]
-pub struct LoadedUserProfile<'info, 'entrypoint> {
-    pub __account__: &'entrypoint mut Box<Account<'info, UserProfile>>,
+pub struct LoadedUser<'info, 'entrypoint> {
+    pub __account__: &'entrypoint mut Box<Account<'info, User>>,
     pub __programs__: &'entrypoint ProgramsMap<'info>,
     pub owner: Pubkey,
-    pub last_todo: u8,
-    pub todo_count: u8,
+    pub note_count: u8,
+    pub last_note: u8,
 }
 
-pub fn add_task_handler<'info>(
+pub fn create_note_handler<'info>(
     mut owner: SeahorseSigner<'info, '_>,
-    mut userprofile: Mutable<LoadedUserProfile<'info, '_>>,
-    mut todoaccount: Empty<Mutable<LoadedTodoAccount<'info, '_>>>,
+    mut user: Mutable<LoadedUser<'info, '_>>,
+    mut note: Empty<Mutable<LoadedNote<'info, '_>>>,
+    mut title: String,
     mut content: String,
 ) -> () {
-    let mut todoaccount = todoaccount.account.clone();
+    let mut note = note.account.clone();
 
-    assign!(todoaccount.borrow_mut().content, content);
+    assign!(note.borrow_mut().owner, owner.key());
 
-    assign!(todoaccount.borrow_mut().idx, userprofile.borrow().last_todo);
+    assign!(note.borrow_mut().index, user.borrow().note_count);
 
-    assign!(todoaccount.borrow_mut().owner, owner.key());
+    assign!(note.borrow_mut().title, title);
 
-    assign!(
-        userprofile.borrow_mut().last_todo,
-        userprofile.borrow().last_todo + 1
-    );
+    assign!(note.borrow_mut().content, content);
 
-    assign!(
-        userprofile.borrow_mut().todo_count,
-        userprofile.borrow().todo_count + 1
-    );
+    assign!(user.borrow_mut().note_count, user.borrow().note_count + 1);
+
+    assign!(user.borrow_mut().last_note, note.borrow().index);
 }
 
-pub fn edit_task_handler<'info>(
+pub fn delete_note_handler<'info>(
     mut owner: SeahorseSigner<'info, '_>,
-    mut todoIndex: u8,
-    mut userprofile: Mutable<LoadedUserProfile<'info, '_>>,
-    mut todoaccount: Mutable<LoadedTodoAccount<'info, '_>>,
+    mut note: Mutable<LoadedNote<'info, '_>>,
+) -> () {
+    if !(note.borrow().owner == owner.key()) {
+        panic!("You are not the owner of this note");
+    }
+
+    assign!(note.borrow_mut().content, "".to_string());
+
+    assign!(note.borrow_mut().title, "".to_string());
+}
+
+pub fn init_user_handler<'info>(
+    mut owner: SeahorseSigner<'info, '_>,
+    mut user: Empty<Mutable<LoadedUser<'info, '_>>>,
+) -> () {
+    let mut user = user.account.clone();
+
+    assign!(user.borrow_mut().owner, owner.key());
+
+    assign!(user.borrow_mut().note_count, 0);
+
+    assign!(user.borrow_mut().last_note, 0);
+}
+
+pub fn update_note_handler<'info>(
+    mut owner: SeahorseSigner<'info, '_>,
+    mut noteIndex: u8,
+    mut note: Mutable<LoadedNote<'info, '_>>,
+    mut title: String,
     mut content: String,
 ) -> () {
-    assign!(todoaccount.borrow_mut().content, content);
-}
+    if !(note.borrow().owner == owner.key()) {
+        panic!("You are not the owner of this note");
+    }
 
-pub fn init_userprofile_handler<'info>(
-    mut owner: SeahorseSigner<'info, '_>,
-    mut userprofile: Empty<Mutable<LoadedUserProfile<'info, '_>>>,
-) -> () {
-    let mut userprofile = userprofile.account.clone();
+    assign!(note.borrow_mut().title, title);
 
-    assign!(userprofile.borrow_mut().owner, owner.key());
-
-    assign!(userprofile.borrow_mut().last_todo, 0);
-
-    assign!(userprofile.borrow_mut().todo_count, 0);
-}
-
-pub fn mark_task_handler<'info>(
-    mut owner: SeahorseSigner<'info, '_>,
-    mut todoIndex: u8,
-    mut userprofile: Mutable<LoadedUserProfile<'info, '_>>,
-    mut todoaccount: Mutable<LoadedTodoAccount<'info, '_>>,
-) -> () {
-    assign!(todoaccount.borrow_mut().marked, true);
-
-    solana_program::msg!("{}", todoaccount.borrow().marked);
-}
-
-pub fn unmark_task_handler<'info>(
-    mut owner: SeahorseSigner<'info, '_>,
-    mut todoIndex: u8,
-    mut userprofile: Mutable<LoadedUserProfile<'info, '_>>,
-    mut todoaccount: Mutable<LoadedTodoAccount<'info, '_>>,
-) -> () {
-    assign!(todoaccount.borrow_mut().marked, false);
-
-    solana_program::msg!("{}", todoaccount.borrow().marked);
+    assign!(note.borrow_mut().content, content);
 }

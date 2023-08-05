@@ -169,19 +169,19 @@ mod my_awesome_app {
     use std::collections::HashMap;
 
     #[derive(Accounts)]
-    # [instruction (content : String)]
-    pub struct AddTask<'info> {
+    # [instruction (title : String , content : String)]
+    pub struct CreateNote<'info> {
         #[account(mut)]
         pub owner: Signer<'info>,
         #[account(mut)]
-        pub userprofile: Box<Account<'info, dot::program::UserProfile>>,
-        # [account (init , space = std :: mem :: size_of :: < dot :: program :: TodoAccount > () + 8 , payer = owner , seeds = ["todoaccount" . as_bytes () . as_ref () , owner . key () . as_ref () , userprofile . last_todo . to_le_bytes () . as_ref ()] , bump)]
-        pub todoaccount: Box<Account<'info, dot::program::TodoAccount>>,
+        pub user: Box<Account<'info, dot::program::User>>,
+        # [account (init , space = std :: mem :: size_of :: < dot :: program :: Note > () + 8 , payer = owner , seeds = ["note" . as_bytes () . as_ref () , owner . key () . as_ref () , user . note_count . to_le_bytes () . as_ref ()] , bump)]
+        pub note: Box<Account<'info, dot::program::Note>>,
         pub rent: Sysvar<'info, Rent>,
         pub system_program: Program<'info, System>,
     }
 
-    pub fn add_task(ctx: Context<AddTask>, content: String) -> Result<()> {
+    pub fn create_note(ctx: Context<CreateNote>, title: String, content: String) -> Result<()> {
         let mut programs = HashMap::new();
 
         programs.insert(
@@ -195,40 +195,30 @@ mod my_awesome_app {
             programs: &programs_map,
         };
 
-        let userprofile =
-            dot::program::UserProfile::load(&mut ctx.accounts.userprofile, &programs_map);
-
-        let todoaccount = Empty {
-            account: dot::program::TodoAccount::load(&mut ctx.accounts.todoaccount, &programs_map),
-            bump: ctx.bumps.get("todoaccount").map(|bump| *bump),
+        let user = dot::program::User::load(&mut ctx.accounts.user, &programs_map);
+        let note = Empty {
+            account: dot::program::Note::load(&mut ctx.accounts.note, &programs_map),
+            bump: ctx.bumps.get("note").map(|bump| *bump),
         };
 
-        add_task_handler(
-            owner.clone(),
-            userprofile.clone(),
-            todoaccount.clone(),
-            content,
-        );
+        create_note_handler(owner.clone(), user.clone(), note.clone(), title, content);
 
-        dot::program::UserProfile::store(userprofile);
+        dot::program::User::store(user);
 
-        dot::program::TodoAccount::store(todoaccount.account);
+        dot::program::Note::store(note.account);
 
         return Ok(());
     }
 
     #[derive(Accounts)]
-    # [instruction (todoIndex : u8 , content : String)]
-    pub struct EditTask<'info> {
+    pub struct DeleteNote<'info> {
         #[account(mut)]
         pub owner: Signer<'info>,
         #[account(mut)]
-        pub userprofile: Box<Account<'info, dot::program::UserProfile>>,
-        #[account(mut)]
-        pub todoaccount: Box<Account<'info, dot::program::TodoAccount>>,
+        pub note: Box<Account<'info, dot::program::Note>>,
     }
 
-    pub fn edit_task(ctx: Context<EditTask>, todoIndex: u8, content: String) -> Result<()> {
+    pub fn delete_note(ctx: Context<DeleteNote>) -> Result<()> {
         let mut programs = HashMap::new();
         let programs_map = ProgramsMap(programs);
         let owner = SeahorseSigner {
@@ -236,38 +226,26 @@ mod my_awesome_app {
             programs: &programs_map,
         };
 
-        let userprofile =
-            dot::program::UserProfile::load(&mut ctx.accounts.userprofile, &programs_map);
+        let note = dot::program::Note::load(&mut ctx.accounts.note, &programs_map);
 
-        let todoaccount =
-            dot::program::TodoAccount::load(&mut ctx.accounts.todoaccount, &programs_map);
+        delete_note_handler(owner.clone(), note.clone());
 
-        edit_task_handler(
-            owner.clone(),
-            todoIndex,
-            userprofile.clone(),
-            todoaccount.clone(),
-            content,
-        );
-
-        dot::program::UserProfile::store(userprofile);
-
-        dot::program::TodoAccount::store(todoaccount);
+        dot::program::Note::store(note);
 
         return Ok(());
     }
 
     #[derive(Accounts)]
-    pub struct InitUserprofile<'info> {
+    pub struct InitUser<'info> {
         #[account(mut)]
         pub owner: Signer<'info>,
-        # [account (init , space = std :: mem :: size_of :: < dot :: program :: UserProfile > () + 8 , payer = owner , seeds = ["userprofile" . as_bytes () . as_ref () , owner . key () . as_ref ()] , bump)]
-        pub userprofile: Box<Account<'info, dot::program::UserProfile>>,
+        # [account (init , space = std :: mem :: size_of :: < dot :: program :: User > () + 8 , payer = owner , seeds = ["user" . as_bytes () . as_ref () , owner . key () . as_ref ()] , bump)]
+        pub user: Box<Account<'info, dot::program::User>>,
         pub rent: Sysvar<'info, Rent>,
         pub system_program: Program<'info, System>,
     }
 
-    pub fn init_userprofile(ctx: Context<InitUserprofile>) -> Result<()> {
+    pub fn init_user(ctx: Context<InitUser>) -> Result<()> {
         let mut programs = HashMap::new();
 
         programs.insert(
@@ -281,30 +259,33 @@ mod my_awesome_app {
             programs: &programs_map,
         };
 
-        let userprofile = Empty {
-            account: dot::program::UserProfile::load(&mut ctx.accounts.userprofile, &programs_map),
-            bump: ctx.bumps.get("userprofile").map(|bump| *bump),
+        let user = Empty {
+            account: dot::program::User::load(&mut ctx.accounts.user, &programs_map),
+            bump: ctx.bumps.get("user").map(|bump| *bump),
         };
 
-        init_userprofile_handler(owner.clone(), userprofile.clone());
+        init_user_handler(owner.clone(), user.clone());
 
-        dot::program::UserProfile::store(userprofile.account);
+        dot::program::User::store(user.account);
 
         return Ok(());
     }
 
     #[derive(Accounts)]
-    # [instruction (todoIndex : u8)]
-    pub struct MarkTask<'info> {
+    # [instruction (noteIndex : u8 , title : String , content : String)]
+    pub struct UpdateNote<'info> {
         #[account(mut)]
         pub owner: Signer<'info>,
         #[account(mut)]
-        pub userprofile: Box<Account<'info, dot::program::UserProfile>>,
-        #[account(mut)]
-        pub todoaccount: Box<Account<'info, dot::program::TodoAccount>>,
+        pub note: Box<Account<'info, dot::program::Note>>,
     }
 
-    pub fn mark_task(ctx: Context<MarkTask>, todoIndex: u8) -> Result<()> {
+    pub fn update_note(
+        ctx: Context<UpdateNote>,
+        noteIndex: u8,
+        title: String,
+        content: String,
+    ) -> Result<()> {
         let mut programs = HashMap::new();
         let programs_map = ProgramsMap(programs);
         let owner = SeahorseSigner {
@@ -312,61 +293,11 @@ mod my_awesome_app {
             programs: &programs_map,
         };
 
-        let userprofile =
-            dot::program::UserProfile::load(&mut ctx.accounts.userprofile, &programs_map);
+        let note = dot::program::Note::load(&mut ctx.accounts.note, &programs_map);
 
-        let todoaccount =
-            dot::program::TodoAccount::load(&mut ctx.accounts.todoaccount, &programs_map);
+        update_note_handler(owner.clone(), noteIndex, note.clone(), title, content);
 
-        mark_task_handler(
-            owner.clone(),
-            todoIndex,
-            userprofile.clone(),
-            todoaccount.clone(),
-        );
-
-        dot::program::UserProfile::store(userprofile);
-
-        dot::program::TodoAccount::store(todoaccount);
-
-        return Ok(());
-    }
-
-    #[derive(Accounts)]
-    # [instruction (todoIndex : u8)]
-    pub struct UnmarkTask<'info> {
-        #[account(mut)]
-        pub owner: Signer<'info>,
-        #[account(mut)]
-        pub userprofile: Box<Account<'info, dot::program::UserProfile>>,
-        #[account(mut)]
-        pub todoaccount: Box<Account<'info, dot::program::TodoAccount>>,
-    }
-
-    pub fn unmark_task(ctx: Context<UnmarkTask>, todoIndex: u8) -> Result<()> {
-        let mut programs = HashMap::new();
-        let programs_map = ProgramsMap(programs);
-        let owner = SeahorseSigner {
-            account: &ctx.accounts.owner,
-            programs: &programs_map,
-        };
-
-        let userprofile =
-            dot::program::UserProfile::load(&mut ctx.accounts.userprofile, &programs_map);
-
-        let todoaccount =
-            dot::program::TodoAccount::load(&mut ctx.accounts.todoaccount, &programs_map);
-
-        unmark_task_handler(
-            owner.clone(),
-            todoIndex,
-            userprofile.clone(),
-            todoaccount.clone(),
-        );
-
-        dot::program::UserProfile::store(userprofile);
-
-        dot::program::TodoAccount::store(todoaccount);
+        dot::program::Note::store(note);
 
         return Ok(());
     }

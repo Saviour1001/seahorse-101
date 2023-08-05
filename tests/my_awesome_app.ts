@@ -1,6 +1,8 @@
 import * as anchor from "@project-serum/anchor";
 import { Program, web3 } from "@project-serum/anchor";
 import { MyAwesomeApp } from "../target/types/my_awesome_app";
+import { assert } from "chai";
+import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 
 describe("my_awesome_app", () => {
   // Configure the client to use the local cluster.
@@ -9,24 +11,19 @@ describe("my_awesome_app", () => {
 
   const program = anchor.workspace.MyAwesomeApp as Program<MyAwesomeApp>;
 
-  // setting up a common owner to be used in all tests
-  const owner = provider.wallet.publicKey;
+  const myKey = provider.wallet.publicKey;
 
-  const MyAwesomeApp = web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("my_awesome_app"), owner.toBuffer()],
+  const seed1 = Buffer.from("user");
+  const seed2 = myKey.toBuffer();
+
+  const [userPDA, _bump] = findProgramAddressSync(
+    [seed1, seed2],
     program.programId
   );
 
-  console.log("MyAwesomeApp", MyAwesomeApp);
+  const user = userPDA;
 
-  it("init a user", async () => {
-    const tx = await program.methods
-      .initUserprofile()
-      .accounts({
-        owner: owner,
-        userprofile: MyAwesomeApp[0],
-      })
-      .rpc();
-    console.log("Your transaction signature", tx);
+  it("Creating user", async () => {
+    await program.methods.initUser().accounts({ owner: myKey }).rpc();
   });
 });

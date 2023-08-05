@@ -2,54 +2,56 @@ from seahorse.prelude import *
 
 # This is your program's public key and it will update
 # automatically when you build the project.
-declare_id('816ES5PuccseqmtEdJkHnDT2cDwF5cppDu6Xh4s6ahRS');
+declare_id('BAv1R7yGTcga43cjmsHMcZsXTsLTxdK4UT4nMg8qzhTh')
 
 
-class UserProfile(Account):
-  owner: Pubkey
-  last_todo:u8
-  todo_count:u8
+class User(Account):
+    owner: Pubkey
+    note_count: u8
+    last_note: u8
 
-class TodoAccount(Account):
-  owner: Pubkey
-  idx:u8
-  content:str
-  marked:bool
 
-@instruction
-def init_userprofile(owner:Signer,userprofile:Empty[UserProfile]):
-  userprofile=userprofile.init(
-    payer=owner,
-    seeds=['userprofile',owner])
-  userprofile.owner=owner.key()
-  userprofile.last_todo=0
-  userprofile.todo_count=0
-  
-@instruction
-def add_task(owner:Signer,userprofile:UserProfile,todoaccount:Empty[TodoAccount],content:str):
-  todoaccount=todoaccount.init(
-    payer=owner,
-    seeds=['todoaccount',owner,userprofile.last_todo]
-  )
-  todoaccount.content=content
-  todoaccount.idx=userprofile.last_todo
-  todoaccount.owner=owner.key()
-  userprofile.last_todo+=1
-  userprofile.todo_count+=1
-
-@instruction
-def mark_task(owner:Signer,todoIndex:u8,userprofile:UserProfile,todoaccount:TodoAccount):
-  todoaccount.marked=True
-  print(todoaccount.marked)
+class Note(Account):
+    owner: Pubkey
+    index: u8
+    title: str
+    content: str
 
 
 @instruction
-def unmark_task(owner:Signer,todoIndex:u8,userprofile:UserProfile,todoaccount:TodoAccount):
-    todoaccount.marked=False
-    print(todoaccount.marked)
+def init_user(owner: Signer, user: Empty[User]):
+    user = user.init(
+        payer=owner,
+        seeds=['user', owner]
+    )
+    user.owner = owner.key()
+    user.note_count = 0
+    user.last_note = 0
+
 
 @instruction
-def edit_task(owner:Signer,todoIndex:u8,userprofile:UserProfile,todoaccount:TodoAccount,content:str):
-    todoaccount.content=content
+def create_note(owner: Signer, user: User, note: Empty[Note], title: str, content: str):
+    note = note.init(
+        payer=owner,
+        seeds=['note', owner, user.note_count]
+    )
+    note.owner = owner.key()
+    note.index = user.note_count
+    note.title = title
+    note.content = content
+    user.note_count += 1
+    user.last_note = note.index
 
 
+@instruction
+def update_note(owner: Signer, noteIndex: u8, note: Note, title: str, content: str):
+    assert note.owner == owner.key(), 'You are not the owner of this note'
+    note.title = title
+    note.content = content
+
+
+@instruction
+def delete_note(owner: Signer, note: Note):
+    assert note.owner == owner.key(), 'You are not the owner of this note'
+    note.content = ""
+    note.title = ""
